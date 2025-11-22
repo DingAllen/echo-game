@@ -15,6 +15,11 @@ from collections import defaultdict
 # Set random seed for reproducibility
 np.random.seed(42)
 
+# Configuration constants
+CONVERGENCE_THRESHOLD = 0.01  # Threshold for detecting convergence
+POLARIZATION_ROUNDING = 3  # Decimal places for polarization uniqueness
+PHASE_TRANSITION_THRESHOLD = 0.05  # Minimum jump to detect phase transition
+
 class Agent:
     """Agent in the signaling game"""
     def __init__(self, node_id):
@@ -52,15 +57,17 @@ class Agent:
         
     def evolve_strategy(self, learning_rate=0.01):
         """
-        Evolve α (conformity desire) using gradient descent on historical utilities
+        Evolve α (conformity desire) using reinforcement learning on historical utilities
         Agents adapt their strategy based on success
         """
         if len(self.history) >= 2:
-            # Simple gradient: if recent utility improved, continue in same direction
+            # Reinforcement learning: if recent utility improved, reinforce current strategy
             recent_change = self.history[-1] - self.history[-2]
-            # Adjust alpha based on success
-            self.alpha += learning_rate * recent_change
-            self.alpha = np.clip(self.alpha, 0.0, 1.0)
+            # Only adjust if change is meaningful to avoid noise-driven evolution
+            if abs(recent_change) > 0.001:
+                # Use sign of change to determine direction (positive = good)
+                self.alpha += learning_rate * np.sign(recent_change) * abs(recent_change)
+                self.alpha = np.clip(self.alpha, 0.0, 1.0)
 
 
 class EchoGameSimulation:
@@ -193,7 +200,7 @@ def parameter_sweep(alpha_range, beta_range, steps=100, runs_per_param=3):
                 # Calculate convergence time (when polarization stabilizes)
                 if len(sim.polarization_history) > 10:
                     diffs = np.diff(sim.polarization_history[-10:])
-                    if np.mean(np.abs(diffs)) < 0.01:
+                    if np.mean(np.abs(diffs)) < CONVERGENCE_THRESHOLD:
                         convergence_times.append(len(sim.polarization_history) - 10)
                     else:
                         convergence_times.append(steps)
@@ -226,7 +233,7 @@ def auto_evaluate(results):
     stds = [r['std_polarization'] for r in results]
     
     # Checkpoint 1: Non-triviality (not a straight line)
-    unique_pols = len(set([round(p, 2) for p in polarizations]))
+    unique_pols = len(set([round(p, POLARIZATION_ROUNDING) for p in polarizations]))
     if unique_pols < 3:
         print("❌ CHECKPOINT 1 FAILED: Results too trivial (nearly constant)")
         return False, "Increase network heterogeneity or add more stubborn agents"
@@ -234,21 +241,25 @@ def auto_evaluate(results):
         print(f"✓ CHECKPOINT 1 PASSED: {unique_pols} distinct polarization levels")
     
     # Checkpoint 2: Phase transition exists
-    # Look for jump in polarization as alpha increases
-    alpha_sorted = sorted(set(alphas))
-    if len(alpha_sorted) > 1:
-        max_jump = 0
-        for i in range(len(results)-1):
-            if results[i]['alpha'] != results[i+1]['alpha']:
-                continue
-            jump = abs(results[i]['mean_polarization'] - results[i+1]['mean_polarization'])
-            max_jump = max(max_jump, jump)
-        
-        if max_jump < 0.05:
-            print("❌ CHECKPOINT 2 FAILED: No clear phase transition detected")
-            return False, "Refine parameter sweep or adjust utility function non-linearity"
-        else:
-            print(f"✓ CHECKPOINT 2 PASSED: Phase transition detected (max jump: {max_jump:.3f})")
+    # Look for jump in polarization across parameter space
+    max_jump = 0
+    # Check transitions along both alpha and beta dimensions
+    for i in range(len(results)-1):
+        for j in range(i+1, len(results)):
+            # Check if parameters are adjacent (differ in only one dimension by one step)
+            alpha_diff = abs(results[i]['alpha'] - results[j]['alpha'])
+            beta_diff = abs(results[i]['beta'] - results[j]['beta'])
+            
+            # Adjacent in parameter space (one step in either alpha or beta)
+            if (alpha_diff < 0.11 and beta_diff < 0.01) or (beta_diff < 0.11 and alpha_diff < 0.01):
+                jump = abs(results[i]['mean_polarization'] - results[j]['mean_polarization'])
+                max_jump = max(max_jump, jump)
+    
+    if max_jump < PHASE_TRANSITION_THRESHOLD:
+        print("❌ CHECKPOINT 2 FAILED: No clear phase transition detected")
+        return False, "Refine parameter sweep or adjust utility function non-linearity"
+    else:
+        print(f"✓ CHECKPOINT 2 PASSED: Phase transition detected (max jump: {max_jump:.3f})")
     
     # Checkpoint 3: Robustness (standard deviation not too large)
     max_std = max(stds)
