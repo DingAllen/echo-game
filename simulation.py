@@ -19,6 +19,7 @@ np.random.seed(42)
 CONVERGENCE_THRESHOLD = 0.01  # Threshold for detecting convergence
 POLARIZATION_ROUNDING = 3  # Decimal places for polarization uniqueness
 PHASE_TRANSITION_THRESHOLD = 0.05  # Minimum jump to detect phase transition
+DEFAULT_TEMPERATURE = 0.1  # Default noise parameter for stochastic decisions
 
 class Agent:
     """Agent in the signaling game"""
@@ -30,10 +31,12 @@ class Agent:
         self.beta = np.random.uniform(0.2, 0.8)  # Concern for global truth
         self.history = []  # Historical utilities for learning
         
-    def decide_opinion(self, neighbors_opinions, true_state=0.0):
+    def decide_opinion(self, neighbors_opinions, true_state=0.0, temperature=DEFAULT_TEMPERATURE):
         """
-        Decide what opinion to express based on utility function
+        Decide what opinion to express based on utility function with noise
         U_i = α * (Local Conformity) - β * (Global Truth Deviation)
+        
+        temperature: Controls noise level in decision-making (higher T = more noise)
         """
         # Calculate local conformity: negative distance to average neighbor opinion
         if len(neighbors_opinions) > 0:
@@ -45,8 +48,16 @@ class Agent:
         # Calculate global truth deviation
         truth_deviation = abs(self.opinion - true_state)
         
-        # Utility function
-        utility = self.alpha * local_conformity - self.beta * truth_deviation
+        # Utility function with thermal noise (Boltzmann-style stochasticity)
+        base_utility = self.alpha * local_conformity - self.beta * truth_deviation
+        
+        # Add Gaussian noise scaled by temperature
+        if temperature > 0:
+            noise = np.random.normal(0, temperature)
+            utility = base_utility + noise
+        else:
+            utility = base_utility
+            
         self.history.append(utility)
         
         return self.opinion, utility
@@ -73,32 +84,46 @@ class Agent:
 class EchoGameSimulation:
     """Main simulation class for echo chamber dynamics"""
     
-    def __init__(self, N=1000, k=10, p=0.1, alpha_fixed=None, beta_fixed=None):
+    def __init__(self, N=1000, k=10, p=0.1, alpha_fixed=None, beta_fixed=None, 
+                 temperature=DEFAULT_TEMPERATURE, stubborn_fraction=0.1, 
+                 network_type='watts_strogatz', m=5):
         """
         Initialize simulation
         N: number of nodes
-        k: number of nearest neighbors in ring topology
-        p: probability of rewiring each edge
+        k: number of nearest neighbors in ring topology (Watts-Strogatz)
+        p: probability of rewiring each edge (Watts-Strogatz)
+        m: number of edges to attach from a new node (Barabási-Albert)
         alpha_fixed/beta_fixed: if set, override agent's individual values
+        temperature: noise parameter for stochastic decisions
+        stubborn_fraction: fraction of stubborn agents (0.0 to 1.0)
+        network_type: 'watts_strogatz' or 'barabasi_albert'
         """
         self.N = N
         self.k = k
         self.p = p
+        self.m = m
         self.alpha_fixed = alpha_fixed
         self.beta_fixed = beta_fixed
+        self.temperature = temperature
+        self.stubborn_fraction = stubborn_fraction
+        self.network_type = network_type
         
-        # Create Watts-Strogatz small-world network
-        self.G = nx.watts_strogatz_graph(N, k, p)
+        # Create network based on topology type
+        if network_type == 'barabasi_albert':
+            self.G = nx.barabasi_albert_graph(N, m)
+        else:  # Default to Watts-Strogatz
+            self.G = nx.watts_strogatz_graph(N, k, p)
         
         # Initialize agents
         self.agents = {i: Agent(i) for i in range(N)}
         
-        # Add stubborn agents (10% of population)
-        num_stubborn = int(0.1 * N)
-        stubborn_ids = np.random.choice(N, num_stubborn, replace=False)
-        for sid in stubborn_ids:
-            self.agents[sid].alpha = 0.9  # Very high conformity desire
-            self.agents[sid].beta = 0.1   # Low truth concern
+        # Add stubborn agents with configurable fraction
+        num_stubborn = int(stubborn_fraction * N)
+        if num_stubborn > 0:
+            stubborn_ids = np.random.choice(N, num_stubborn, replace=False)
+            for sid in stubborn_ids:
+                self.agents[sid].alpha = 0.9  # Very high conformity desire
+                self.agents[sid].beta = 0.1   # Low truth concern
             
         # Override alpha/beta if fixed values provided
         if alpha_fixed is not None and beta_fixed is not None:
@@ -134,8 +159,9 @@ class EchoGameSimulation:
             neighbors = list(self.G.neighbors(node_id))
             neighbor_opinions = [self.agents[n].opinion for n in neighbors]
             
-            # Decide opinion and calculate utility
-            opinion, utility = agent.decide_opinion(neighbor_opinions, self.true_state)
+            # Decide opinion and calculate utility (with temperature)
+            opinion, utility = agent.decide_opinion(neighbor_opinions, self.true_state, 
+                                                   temperature=self.temperature)
             utilities[node_id] = utility
         
         # Update reputations and opinions
@@ -172,14 +198,20 @@ class EchoGameSimulation:
         return self.get_polarization_index()
 
 
-def parameter_sweep(alpha_range, beta_range, steps=100, runs_per_param=3):
+def parameter_sweep(alpha_range, beta_range, steps=100, runs_per_param=3, 
+                   temperature=DEFAULT_TEMPERATURE, stubborn_fraction=0.1, 
+                   network_type='watts_strogatz'):
     """
     Phase 2: Adaptive parameter sweep
     Returns: results dictionary with polarization data
+    
+    temperature: noise parameter for decisions
+    stubborn_fraction: fraction of stubborn agents
+    network_type: 'watts_strogatz' or 'barabasi_albert'
     """
     results = []
     
-    print("Starting parameter sweep...")
+    print(f"Starting parameter sweep (T={temperature}, stubborn={stubborn_fraction*100:.0f}%, network={network_type})...")
     total_combinations = len(alpha_range) * len(beta_range)
     current = 0
     
@@ -193,7 +225,10 @@ def parameter_sweep(alpha_range, beta_range, steps=100, runs_per_param=3):
             
             for run in range(runs_per_param):
                 sim = EchoGameSimulation(N=1000, k=10, p=0.1, 
-                                        alpha_fixed=alpha, beta_fixed=beta)
+                                        alpha_fixed=alpha, beta_fixed=beta,
+                                        temperature=temperature,
+                                        stubborn_fraction=stubborn_fraction,
+                                        network_type=network_type, m=5)
                 final_pol = sim.run(steps=steps)
                 polarizations.append(final_pol)
                 
@@ -394,6 +429,195 @@ def save_results_csv(results, filename="data/results.csv"):
     print(f"Results saved to {filename}")
 
 
+def run_sensitivity_analysis(parameter_type='stubborn_fraction', 
+                             param_values=None, 
+                             alpha=0.6, beta=0.4, 
+                             steps=100, runs=5):
+    """
+    Run sensitivity analysis on a specific parameter
+    
+    parameter_type: 'stubborn_fraction', 'temperature', etc.
+    param_values: list of values to test
+    alpha, beta: fixed strategy parameters
+    """
+    if param_values is None:
+        if parameter_type == 'stubborn_fraction':
+            param_values = np.linspace(0.0, 0.3, 7)  # 0% to 30%
+        elif parameter_type == 'temperature':
+            param_values = np.linspace(0.0, 0.5, 6)
+        else:
+            param_values = [0.1]
+    
+    results = []
+    
+    print(f"\n=== Sensitivity Analysis: {parameter_type} ===")
+    print(f"Fixed: α={alpha:.2f}, β={beta:.2f}")
+    
+    for i, value in enumerate(param_values):
+        print(f"Progress: {i+1}/{len(param_values)} | {parameter_type}={value:.3f}")
+        
+        polarizations = []
+        
+        for run in range(runs):
+            if parameter_type == 'stubborn_fraction':
+                sim = EchoGameSimulation(N=1000, k=10, p=0.1,
+                                        alpha_fixed=alpha, beta_fixed=beta,
+                                        stubborn_fraction=value)
+            elif parameter_type == 'temperature':
+                sim = EchoGameSimulation(N=1000, k=10, p=0.1,
+                                        alpha_fixed=alpha, beta_fixed=beta,
+                                        temperature=value)
+            else:
+                sim = EchoGameSimulation(N=1000, k=10, p=0.1,
+                                        alpha_fixed=alpha, beta_fixed=beta)
+            
+            final_pol = sim.run(steps=steps)
+            polarizations.append(final_pol)
+        
+        results.append({
+            parameter_type: value,
+            'mean_polarization': np.mean(polarizations),
+            'std_polarization': np.std(polarizations),
+            'alpha': alpha,
+            'beta': beta
+        })
+    
+    print(f"✓ Sensitivity analysis complete")
+    return results
+
+
+def run_network_comparison(alpha_range, beta_range, steps=100, runs=3):
+    """
+    Compare results between Watts-Strogatz and Barabási-Albert networks
+    """
+    print("\n=== Network Topology Comparison ===")
+    
+    # Run on Barabási-Albert network
+    print("\n1. Barabási-Albert Scale-Free Network")
+    results_ba = parameter_sweep(alpha_range, beta_range, steps=steps, 
+                                 runs_per_param=runs, network_type='barabasi_albert')
+    
+    # Run on Watts-Strogatz for comparison (if not already done)
+    print("\n2. Watts-Strogatz Small-World Network")
+    results_ws = parameter_sweep(alpha_range, beta_range, steps=steps, 
+                                 runs_per_param=runs, network_type='watts_strogatz')
+    
+    return results_ba, results_ws
+
+
+def run_high_resolution_scan(alpha_min=0.4, alpha_max=0.7, step=0.02,
+                             beta_min=0.3, beta_max=0.6,
+                             steps=100, runs=5):
+    """
+    High-resolution scan of critical region
+    """
+    alpha_range = np.arange(alpha_min, alpha_max + step, step)
+    beta_range = np.arange(beta_min, beta_max + step, step)
+    
+    print(f"\n=== High-Resolution Critical Region Scan ===")
+    print(f"α ∈ [{alpha_min}, {alpha_max}], step={step}")
+    print(f"β ∈ [{beta_min}, {beta_max}], step={step}")
+    print(f"Total combinations: {len(alpha_range) * len(beta_range)}")
+    
+    results = parameter_sweep(alpha_range, beta_range, steps=steps, runs_per_param=runs)
+    
+    return results
+
+
+def generate_comparison_figures(results_ws, results_ba, results_highres, 
+                                sensitivity_results, output_dir="figures"):
+    """
+    Generate new comparison figures for paper
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    print(f"\n=== Generating Comparison Visualizations ===")
+    
+    # Figure 4: Network topology comparison
+    print("Creating Figure 4: Network Topology Comparison...")
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    
+    for idx, (results, title) in enumerate([(results_ws, 'Watts-Strogatz'),
+                                             (results_ba, 'Barabási-Albert')]):
+        alphas = np.array([r['alpha'] for r in results])
+        betas = np.array([r['beta'] for r in results])
+        polarizations = np.array([r['mean_polarization'] for r in results])
+        
+        alpha_unique = sorted(set(alphas))
+        beta_unique = sorted(set(betas))
+        Z = np.zeros((len(beta_unique), len(alpha_unique)))
+        
+        for r in results:
+            i = beta_unique.index(r['beta'])
+            j = alpha_unique.index(r['alpha'])
+            Z[i, j] = r['mean_polarization']
+        
+        ax = axes[idx]
+        contour = ax.contourf(alpha_unique, beta_unique, Z, levels=20, cmap='RdYlBu_r')
+        plt.colorbar(contour, ax=ax, label='Polarization')
+        ax.set_xlabel(r'$\alpha$ (Conformity)', fontsize=12)
+        ax.set_ylabel(r'$\beta$ (Truth Concern)', fontsize=12)
+        ax.set_title(f'{title} Network', fontsize=14, fontweight='bold')
+        ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(f'{output_dir}/fig4_network_comparison.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    print("✓ Figure 4 saved")
+    
+    # Figure 5: High-resolution critical region
+    print("Creating Figure 5: High-Resolution Critical Region...")
+    alphas = np.array([r['alpha'] for r in results_highres])
+    betas = np.array([r['beta'] for r in results_highres])
+    polarizations = np.array([r['mean_polarization'] for r in results_highres])
+    
+    alpha_unique = sorted(set(alphas))
+    beta_unique = sorted(set(betas))
+    Z = np.zeros((len(beta_unique), len(alpha_unique)))
+    
+    for r in results_highres:
+        i = beta_unique.index(r['beta'])
+        j = alpha_unique.index(r['alpha'])
+        Z[i, j] = r['mean_polarization']
+    
+    plt.figure(figsize=(10, 8))
+    contour = plt.contourf(alpha_unique, beta_unique, Z, levels=30, cmap='RdYlBu_r')
+    plt.colorbar(contour, label='Polarization Index')
+    plt.xlabel(r'$\alpha$ (Conformity Desire)', fontsize=14)
+    plt.ylabel(r'$\beta$ (Truth Concern)', fontsize=14)
+    plt.title('High-Resolution Phase Diagram (Critical Region)', fontsize=16, fontweight='bold')
+    
+    # Mark critical boundary
+    plt.plot([0.4, 0.7], [0.4, 0.7], 'k--', linewidth=2, label=r'$\alpha = \beta$')
+    plt.legend(fontsize=12)
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(f'{output_dir}/fig5_highres_critical.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    print("✓ Figure 5 saved")
+    
+    # Figure 6: Sensitivity analysis
+    print("Creating Figure 6: Stubborn Agent Sensitivity...")
+    param_name = list(sensitivity_results[0].keys())[0]
+    param_values = [r[param_name] for r in sensitivity_results]
+    mean_pols = [r['mean_polarization'] for r in sensitivity_results]
+    std_pols = [r['std_polarization'] for r in sensitivity_results]
+    
+    plt.figure(figsize=(10, 6))
+    plt.errorbar(param_values, mean_pols, yerr=std_pols, 
+                marker='o', markersize=8, capsize=5, capthick=2, 
+                linewidth=2, color='steelblue')
+    plt.xlabel('Stubborn Agent Fraction', fontsize=14)
+    plt.ylabel('Mean Polarization Index', fontsize=14)
+    plt.title('Sensitivity to Stubborn Agent Fraction', fontsize=16, fontweight='bold')
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(f'{output_dir}/fig6_stubborn_sensitivity.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    print("✓ Figure 6 saved")
+    
+    print("✅ All comparison visualizations generated!")
+
+
 def main():
     """
     Main execution loop with adaptive experimentation
@@ -471,4 +695,79 @@ def main():
 
 
 if __name__ == "__main__":
-    results = main()
+    import sys
+    
+    # Check if running extended experiments
+    if len(sys.argv) > 1 and sys.argv[1] == '--extended':
+        print("="*70)
+        print("PROJECT_ECHO_GAME: EXTENDED EXPERIMENTS")
+        print("Mission Update Implementation")
+        print("="*70)
+        
+        # 1. Baseline with temperature parameter
+        print("\n" + "="*70)
+        print("EXPERIMENT 1: Baseline with Temperature Parameter T=0.1")
+        print("="*70)
+        alpha_range = np.linspace(0.1, 0.9, 9)
+        beta_range = np.linspace(0.1, 0.9, 9)
+        results_baseline = parameter_sweep(alpha_range, beta_range, 
+                                          steps=100, runs_per_param=3,
+                                          temperature=0.1)
+        save_results_csv(results_baseline, "data/results_baseline_temp.csv")
+        
+        # 2. Barabási-Albert network comparison
+        print("\n" + "="*70)
+        print("EXPERIMENT 2: Network Topology Comparison")
+        print("="*70)
+        results_ba, results_ws = run_network_comparison(alpha_range, beta_range, 
+                                                        steps=100, runs=3)
+        save_results_csv(results_ba, "data/results_barabasi_albert.csv")
+        save_results_csv(results_ws, "data/results_watts_strogatz.csv")
+        
+        # 3. High-resolution critical region scan
+        print("\n" + "="*70)
+        print("EXPERIMENT 3: High-Resolution Critical Region Scan")
+        print("="*70)
+        results_highres = run_high_resolution_scan(alpha_min=0.4, alpha_max=0.7, 
+                                                   step=0.02,
+                                                   beta_min=0.3, beta_max=0.6,
+                                                   steps=100, runs=5)
+        save_results_csv(results_highres, "data/results_highres_critical.csv")
+        
+        # 4. Stubborn agent sensitivity analysis
+        print("\n" + "="*70)
+        print("EXPERIMENT 4: Stubborn Agent Fraction Sensitivity")
+        print("="*70)
+        stubborn_fractions = np.linspace(0.0, 0.3, 7)
+        sensitivity_results = run_sensitivity_analysis(
+            parameter_type='stubborn_fraction',
+            param_values=stubborn_fractions,
+            alpha=0.6, beta=0.4,
+            steps=100, runs=5
+        )
+        save_results_csv(sensitivity_results, "data/results_stubborn_sensitivity.csv")
+        
+        # 5. Generate all comparison visualizations
+        print("\n" + "="*70)
+        print("GENERATING COMPARISON FIGURES")
+        print("="*70)
+        generate_comparison_figures(results_ws, results_ba, results_highres,
+                                   sensitivity_results, output_dir="figures")
+        
+        print("\n" + "="*70)
+        print("✅ ALL EXTENDED EXPERIMENTS COMPLETE!")
+        print("="*70)
+        print("\nNew Deliverables:")
+        print("  ✓ data/results_baseline_temp.csv")
+        print("  ✓ data/results_barabasi_albert.csv")
+        print("  ✓ data/results_watts_strogatz.csv")
+        print("  ✓ data/results_highres_critical.csv")
+        print("  ✓ data/results_stubborn_sensitivity.csv")
+        print("  ✓ figures/fig4_network_comparison.png")
+        print("  ✓ figures/fig5_highres_critical.png")
+        print("  ✓ figures/fig6_stubborn_sensitivity.png")
+        print("\nNext: Update paper with new findings")
+        print("="*70)
+    else:
+        # Original main function
+        results = main()
