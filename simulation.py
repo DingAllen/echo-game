@@ -442,9 +442,9 @@ def run_sensitivity_analysis(parameter_type='stubborn_fraction',
     """
     if param_values is None:
         if parameter_type == 'stubborn_fraction':
-            param_values = np.linspace(0.0, 0.3, 7)  # 0% to 30%
+            param_values = np.arange(0.0, 0.31, 0.05)  # 0%, 5%, 10%, ..., 30%
         elif parameter_type == 'temperature':
-            param_values = np.linspace(0.0, 0.5, 6)
+            param_values = np.arange(0.0, 0.51, 0.1)  # 0.0, 0.1, 0.2, ..., 0.5
         else:
             param_values = [0.1]
     
