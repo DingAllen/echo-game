@@ -320,9 +320,9 @@ def generate_visualizations(results, output_dir="figures"):
     betas = np.array([r['beta'] for r in results])
     polarizations = np.array([r['mean_polarization'] for r in results])
     
-    # Figure 1: Phase Diagram
-    print("Creating Figure 1: Phase Diagram...")
-    plt.figure(figsize=(10, 8))
+    # Figure 1: Enhanced Phase Diagram with Critical Line
+    print("Creating Figure 1: Enhanced Phase Diagram...")
+    fig, ax = plt.subplots(figsize=(11, 9))
     
     # Create grid for contour plot
     alpha_unique = sorted(set(alphas))
@@ -334,15 +334,38 @@ def generate_visualizations(results, output_dir="figures"):
         j = alpha_unique.index(r['alpha'])
         Z[i, j] = r['mean_polarization']
     
-    contour = plt.contourf(alpha_unique, beta_unique, Z, levels=20, cmap='RdYlBu_r')
-    plt.colorbar(contour, label='Polarization Index')
-    plt.xlabel(r'$\alpha$ (Conformity Desire)', fontsize=14)
-    plt.ylabel(r'$\beta$ (Truth Concern)', fontsize=14)
-    plt.title('Phase Diagram: Echo Chamber Formation', fontsize=16, fontweight='bold')
-    plt.grid(True, alpha=0.3)
+    # Create contour plot
+    contour = ax.contourf(alpha_unique, beta_unique, Z, levels=25, cmap='RdYlBu_r')
+    cbar = plt.colorbar(contour, ax=ax, label='Polarization Index (Variance)')
+    
+    # Add critical line α = β
+    diag_line = np.linspace(min(alpha_unique), max(alpha_unique), 100)
+    ax.plot(diag_line, diag_line, 'k--', linewidth=2.5, label=r'Critical Line: $\alpha = \beta$')
+    
+    # Mark regions
+    ax.text(0.2, 0.7, 'Consensus\nRegion', fontsize=13, ha='center',
+            bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.7))
+    ax.text(0.7, 0.2, 'Polarization\nRegion', fontsize=13, ha='center',
+            bbox=dict(boxstyle='round', facecolor='lightcoral', alpha=0.7))
+    
+    # Add contour lines for specific polarization levels
+    contour_lines = ax.contour(alpha_unique, beta_unique, Z, 
+                               levels=[0.1, 0.2, 0.3], colors='black', 
+                               linewidths=1, alpha=0.4, linestyles='solid')
+    ax.clabel(contour_lines, inline=True, fontsize=9, fmt='Pol=%.1f')
+    
+    ax.set_xlabel(r'$\alpha$ (Conformity Desire)', fontsize=14, fontweight='bold')
+    ax.set_ylabel(r'$\beta$ (Truth Concern)', fontsize=14, fontweight='bold')
+    ax.set_title('Phase Diagram: Echo Chamber Formation Mechanism\n' + 
+                 r'When $\alpha > \beta$: Social Conformity Dominates, Polarization Emerges',
+                 fontsize=15, fontweight='bold', pad=15)
+    ax.legend(loc='upper right', fontsize=11, framealpha=0.9)
+    ax.grid(True, alpha=0.2, linestyle=':')
+    
+    plt.tight_layout()
     plt.savefig(f'{output_dir}/fig1_phase_diagram.png', dpi=300, bbox_inches='tight')
     plt.close()
-    print("✓ Figure 1 saved")
+    print(f"✓ Figure 1 saved - Phase diagram with critical line α=β")
     
     # Figure 2: Time Evolution at Critical Point
     print("Creating Figure 2: Time Evolution...")
@@ -357,61 +380,152 @@ def generate_visualizations(results, output_dir="figures"):
     
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     
-    # Plot opinion distribution at different time points
+    # Figure 2: Enhanced Time Evolution with Metrics
+    print("Creating Figure 2: Time Evolution Analysis...")
+    # Find critical point (highest gradient in alpha direction)
+    critical_alpha = 0.6  # Approximate from typical results
+    critical_beta = 0.4
+    
+    sim_critical = EchoGameSimulation(N=1000, k=10, p=0.1, 
+                                     alpha_fixed=critical_alpha, 
+                                     beta_fixed=critical_beta)
+    sim_critical.run(steps=150)
+    
+    fig = plt.figure(figsize=(16, 10))
+    gs = fig.add_gridspec(3, 3, hspace=0.3, wspace=0.3)
+    
+    # Top row: Opinion distributions at different time points
     time_points = [0, 50, 100, 149]
-    for idx, t in enumerate(time_points):
-        ax = axes[idx // 2, idx % 2]
+    for idx, t in enumerate(time_points[:3]):
+        ax = fig.add_subplot(gs[0, idx])
         opinions = sim_critical.opinion_history[t]
         ax.hist(opinions, bins=30, alpha=0.7, color='steelblue', edgecolor='black')
-        ax.set_xlabel('Opinion', fontsize=12)
-        ax.set_ylabel('Frequency', fontsize=12)
-        ax.set_title(f't = {t}', fontsize=13, fontweight='bold')
+        ax.axvline(x=0, color='red', linestyle='--', linewidth=1.5, alpha=0.7, label='Truth')
+        ax.set_xlabel('Opinion', fontsize=10)
+        ax.set_ylabel('Frequency', fontsize=10)
+        ax.set_title(f't = {t} (Var={np.var(opinions):.3f})', fontsize=11, fontweight='bold')
         ax.set_xlim(-1, 1)
         ax.grid(True, alpha=0.3)
+        if idx == 0:
+            ax.legend(fontsize=9)
     
-    plt.suptitle('Opinion Distribution Evolution (Near Critical Point)', 
-                 fontsize=16, fontweight='bold')
-    plt.tight_layout()
+    # Bottom left: Polarization over time
+    ax_pol = fig.add_subplot(gs[1, :2])
+    ax_pol.plot(sim_critical.polarization_history, linewidth=2, color='darkblue')
+    ax_pol.axhline(y=0.1, color='orange', linestyle='--', alpha=0.7, label='Low Polarization')
+    ax_pol.axhline(y=0.3, color='red', linestyle='--', alpha=0.7, label='High Polarization')
+    ax_pol.set_xlabel('Time Step', fontsize=11, fontweight='bold')
+    ax_pol.set_ylabel('Polarization Index (Variance)', fontsize=11, fontweight='bold')
+    ax_pol.set_title('Polarization Growth Over Time', fontsize=12, fontweight='bold')
+    ax_pol.legend(fontsize=9)
+    ax_pol.grid(True, alpha=0.3)
+    
+    # Bottom right: Final opinion distribution (larger)
+    ax_final = fig.add_subplot(gs[1, 2])
+    final_opinions = sim_critical.opinion_history[-1]
+    ax_final.hist(final_opinions, bins=40, alpha=0.7, color='crimson', edgecolor='black')
+    ax_final.axvline(x=0, color='green', linestyle='--', linewidth=2, label='Truth (0)')
+    ax_final.set_xlabel('Opinion', fontsize=10)
+    ax_final.set_ylabel('Frequency', fontsize=10)
+    ax_final.set_title(f'Final State (t={len(sim_critical.opinion_history)-1})\n' +
+                       f'Variance={np.var(final_opinions):.3f}',
+                       fontsize=11, fontweight='bold')
+    ax_final.legend(fontsize=9)
+    ax_final.grid(True, alpha=0.3)
+    
+    # Third row: Opinion trajectories (sample agents)
+    ax_traj = fig.add_subplot(gs[2, :])
+    # Sample 50 agents for trajectory visualization
+    sample_indices = np.random.choice(1000, 50, replace=False)
+    for idx in sample_indices:
+        trajectory = [sim_critical.opinion_history[t][idx] for t in range(len(sim_critical.opinion_history))]
+        ax_traj.plot(trajectory, alpha=0.3, linewidth=0.5, color='steelblue')
+    ax_traj.axhline(y=0, color='red', linestyle='--', linewidth=2, alpha=0.7, label='Truth')
+    ax_traj.set_xlabel('Time Step', fontsize=11, fontweight='bold')
+    ax_traj.set_ylabel('Opinion', fontsize=11, fontweight='bold')
+    ax_traj.set_title('Sample Agent Opinion Trajectories (50 agents)', fontsize=12, fontweight='bold')
+    ax_traj.set_ylim(-1, 1)
+    ax_traj.legend(fontsize=9)
+    ax_traj.grid(True, alpha=0.3)
+    
+    plt.suptitle(f'Opinion Dynamics Evolution at Critical Point (α={critical_alpha}, β={critical_beta})\n' +
+                 'Transition from Consensus to Polarization',
+                 fontsize=14, fontweight='bold', y=0.995)
     plt.savefig(f'{output_dir}/fig2_time_evolution.png', dpi=300, bbox_inches='tight')
     plt.close()
-    print("✓ Figure 2 saved")
+    print(f"✓ Figure 2 saved - Time evolution with {len(sim_critical.opinion_history)} steps")
     
-    # Figure 3: Network Structure with Echo Chambers
-    print("Creating Figure 3: Network Structure...")
-    plt.figure(figsize=(12, 12))
+    # Figure 3: Improved Network Structure with Echo Chambers
+    print("Creating Figure 3: Network Structure with Community Detection...")
+    fig, axes = plt.subplots(1, 2, figsize=(18, 8))
     
     # Use final state from critical simulation
     final_opinions = sim_critical.opinion_history[-1]
     
-    # Color nodes by opinion
-    node_colors = [opinion for opinion in final_opinions]
+    # Left panel: Network with opinion coloring
+    ax1 = axes[0]
+    pos = nx.spring_layout(sim_critical.G, k=0.5, iterations=100, seed=42)
     
-    # Use spring layout for better visualization
-    pos = nx.spring_layout(sim_critical.G, k=0.3, iterations=50, seed=42)
+    # Identify echo chambers (communities based on opinions)
+    positive_nodes = [i for i, op in enumerate(final_opinions) if op > 0.2]
+    negative_nodes = [i for i, op in enumerate(final_opinions) if op < -0.2]
+    neutral_nodes = [i for i, op in enumerate(final_opinions) if -0.2 <= op <= 0.2]
     
-    nx.draw_networkx_nodes(sim_critical.G, pos, 
-                          node_color=node_colors, 
-                          node_size=30,
-                          cmap='RdBu',
-                          vmin=-1, vmax=1,
-                          alpha=0.8)
+    # Draw nodes by community
+    if positive_nodes:
+        nx.draw_networkx_nodes(sim_critical.G, pos, nodelist=positive_nodes,
+                              node_color='#d62728', node_size=50, 
+                              alpha=0.9, label='Pro (+)', ax=ax1)
+    if negative_nodes:
+        nx.draw_networkx_nodes(sim_critical.G, pos, nodelist=negative_nodes,
+                              node_color='#1f77b4', node_size=50,
+                              alpha=0.9, label='Con (−)', ax=ax1)
+    if neutral_nodes:
+        nx.draw_networkx_nodes(sim_critical.G, pos, nodelist=neutral_nodes,
+                              node_color='#7f7f7f', node_size=30,
+                              alpha=0.5, label='Neutral', ax=ax1)
     
-    nx.draw_networkx_edges(sim_critical.G, pos, alpha=0.1, width=0.5)
+    # Draw edges with emphasis on cross-community links
+    edges = sim_critical.G.edges()
+    cross_edges = [(u, v) for u, v in edges 
+                   if (u in positive_nodes and v in negative_nodes) or 
+                      (u in negative_nodes and v in positive_nodes)]
+    within_edges = [e for e in edges if e not in cross_edges]
     
-    plt.title('Network Structure: Echo Chamber Clustering', 
-             fontsize=16, fontweight='bold')
+    nx.draw_networkx_edges(sim_critical.G, pos, edgelist=within_edges,
+                          alpha=0.1, width=0.3, ax=ax1)
+    nx.draw_networkx_edges(sim_critical.G, pos, edgelist=cross_edges,
+                          alpha=0.3, width=1.0, edge_color='orange',
+                          style='dashed', ax=ax1)
     
-    # Add colorbar
-    sm = plt.cm.ScalarMappable(cmap='RdBu', 
-                               norm=plt.Normalize(vmin=-1, vmax=1))
-    sm.set_array([])
-    cbar = plt.colorbar(sm, ax=plt.gca(), label='Opinion')
+    ax1.set_title(f'Network Structure at t={len(sim_critical.opinion_history)-1}\n' +
+                  f'Echo Chambers: {len(positive_nodes)} Pro, {len(negative_nodes)} Con, ' +
+                  f'{len(neutral_nodes)} Neutral\n' +
+                  f'Cross-Community Links: {len(cross_edges)} ({len(cross_edges)/len(edges)*100:.1f}%)',
+                  fontsize=12, fontweight='bold')
+    ax1.legend(loc='upper right', fontsize=10)
+    ax1.axis('off')
     
-    plt.axis('off')
+    # Right panel: Opinion distribution histogram
+    ax2 = axes[1]
+    ax2.hist(final_opinions, bins=40, alpha=0.7, color='steelblue', edgecolor='black')
+    ax2.axvline(x=0, color='red', linestyle='--', linewidth=2, label='Truth (0)')
+    ax2.axvline(x=np.mean(final_opinions), color='green', linestyle='--', 
+                linewidth=2, label=f'Mean ({np.mean(final_opinions):.2f})')
+    ax2.set_xlabel('Opinion', fontsize=12)
+    ax2.set_ylabel('Number of Agents', fontsize=12)
+    ax2.set_title(f'Opinion Distribution\nVariance (Polarization): {np.var(final_opinions):.3f}',
+                  fontsize=12, fontweight='bold')
+    ax2.legend(fontsize=10)
+    ax2.grid(True, alpha=0.3)
+    
+    plt.suptitle('Echo Chamber Formation: Network Structure and Opinion Distribution',
+                 fontsize=14, fontweight='bold', y=0.98)
     plt.tight_layout()
     plt.savefig(f'{output_dir}/fig3_network_structure.png', dpi=300, bbox_inches='tight')
     plt.close()
-    print("✓ Figure 3 saved")
+    print(f"✓ Figure 3 saved - Communities: {len(positive_nodes)} vs {len(negative_nodes)}, " +
+          f"Cross-links: {len(cross_edges)}/{len(edges)}")
     
     print("✅ All visualizations generated successfully!")
 

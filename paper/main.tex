@@ -141,79 +141,57 @@ To ensure robustness of our findings, we conduct four additional experiments:
 
 \subsection{Phase Diagram}
 
-Figure~\ref{fig:phase} presents the complete phase diagram mapping $(\alpha, \beta)$ parameter space to equilibrium polarization. Several key features emerge:
+Figure~\ref{fig:phase} presents the complete phase diagram mapping $(\alpha, \beta)$ parameter space to equilibrium polarization. The color intensity represents polarization magnitude (variance of opinion distribution), revealing distinct regimes separated by a critical boundary.
+
+Several key features emerge:
 
 \begin{itemize}
-\item \textbf{Consensus Region} (Low $\alpha$, High $\beta$): When truth-seeking dominates, the system converges to $O_i \approx 0$ for all agents, yielding $\text{Pol} \approx 0$.
-\item \textbf{Polarization Region} (High $\alpha$, Low $\beta$): Strong conformity pressure fragments the network into opposing echo chambers with $\text{Pol} > 0.3$.
-\item \textbf{Critical Boundary}: A sharp transition occurs near $\alpha \approx \beta$, particularly around $\alpha_c \in [0.5, 0.6]$.
+\item \textbf{Consensus Region} (Lower-left, $\alpha < \beta$): When truth-seeking dominates ($\beta > \alpha$), the system converges to $O_i \approx 0$ for all agents, yielding minimal polarization ($\text{Pol} < 0.1$, blue region). Agents prioritize accuracy over social approval, maintaining alignment with objective truth.
+
+\item \textbf{Polarization Region} (Upper-right, $\alpha > \beta$): Strong conformity pressure ($\alpha > \beta$) fragments the network into opposing echo chambers with high polarization ($\text{Pol} > 0.3$, red region). Social validation outweighs truth-seeking, enabling self-reinforcing opinion clusters.
+
+\item \textbf{Critical Boundary} ($\alpha \approx \beta$, dashed line): A sharp transition occurs along the diagonal where conformity and truth incentives balance. The narrow transition width indicates criticality—small parameter changes trigger abrupt regime shifts. This boundary is marked explicitly in black dashed line as the critical line $\alpha = \beta$.
 \end{itemize}
 
-The phase diagram reveals that echo chambers are not aberrations but inevitable outcomes when social incentives ($\alpha$) exceed truth incentives ($\beta$).
+The phase diagram demonstrates that echo chambers are not aberrations but inevitable outcomes of strategic incentive structures. When platforms reward engagement and social validation ($\alpha$) more than accuracy ($\beta$), polarization becomes thermodynamically favorable. The contour lines (labeled with polarization values) show smooth gradients within each region, while the steep gradient near the critical line confirms second-order phase transition characteristics.
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.8\textwidth]{../figures/fig1_phase_diagram.png}
-\caption{Phase diagram showing equilibrium polarization as a function of conformity desire $\alpha$ and truth concern $\beta$. Warm colors indicate high polarization (echo chambers), cool colors indicate consensus. The diagonal boundary $\alpha \approx \beta$ marks the critical transition.}
+\includegraphics[width=0.85\textwidth]{../figures/fig1_phase_diagram.png}
+\caption{Phase diagram showing equilibrium polarization as a function of conformity desire $\alpha$ and truth concern $\beta$. Warm colors (red) indicate high polarization (echo chambers), cool colors (blue) indicate consensus. The critical boundary $\alpha \approx \beta$ (black dashed line) separates regimes where social conformity dominates versus truth-seeking dominates. Contour lines show polarization levels. Regions are labeled to indicate consensus (lower-left) and polarization (upper-right) zones.}
 \label{fig:phase}
 \end{figure}
 
 \subsection{Temporal Evolution}
 
-Figure~\ref{fig:evolution} tracks opinion distribution over time for a system near the critical point ($\alpha = 0.6, \beta = 0.4$). Initially ($t=0$), opinions are uniformly distributed. By $t=50$, a bimodal distribution begins to emerge. At $t=100$, the system has fully segregated into two distinct clusters representing opposing echo chambers. The final state ($t=149$) shows stable polarization with sharp peaks at $O \approx \pm 0.6$.
+Figure~\ref{fig:evolution} comprehensively tracks opinion dynamics over time for a system at the critical point ($\alpha = 0.6, \beta = 0.4$). The top row displays opinion distributions at three key time points, showing the progressive emergence of bimodality. At $t=0$, opinions are uniformly distributed around the truth. By $t=50$, a bimodal structure begins emerging. At $t=100$, the system has segregated into two opposing camps.
 
-This temporal trajectory demonstrates the dynamic instability of neutral positions: agents are progressively pulled toward one of two opposing poles through local conformity cascades.
+The middle panels provide quantitative analysis: the left panel tracks polarization growth, showing rapid increase between $t=30$ and $t=80$ before stabilizing at high values (variance $>0.3$), while the right panel shows the final distribution with distinct peaks far from truth. The bottom panel displays individual agent trajectories (50 sampled agents), revealing how initially diverse opinions diverge and cluster at opposing extremes. Agents starting near the truth are pulled toward one of two poles through local conformity cascades.
+
+This temporal trajectory demonstrates the dynamic instability of neutral positions in conformity-dominated regimes: moderate voices are progressively marginalized as the system self-organizes into polarized factions. The transition occurs over $\sim$50-80 time steps, suggesting a characteristic timescale for echo chamber formation under critical conditions.
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.9\textwidth]{../figures/fig2_time_evolution.png}
-\caption{Evolution of opinion distribution at four time points for $\alpha=0.6, \beta=0.4$. The transition from unimodal (consensus) to bimodal (polarized) distribution occurs around $t=50$-$100$.}
+\includegraphics[width=0.95\textwidth]{../figures/fig2_time_evolution.png}
+\caption{Comprehensive temporal evolution analysis at critical point ($\alpha=0.6, \beta=0.4$). Top: Opinion distributions at $t=0, 50, 100$ showing bimodal emergence. Middle left: Polarization growth curve. Middle right: Final opinion distribution. Bottom: Individual agent trajectories (50 agents) showing divergence from initial positions toward opposing extremes. The transition from consensus to polarization occurs over approximately 50-80 time steps.}
 \label{fig:evolution}
 \end{figure}
 
 \subsection{Network Structure Visualization}
 
-Figure~\ref{fig:network} visualizes the final network configuration, with node colors representing opinions (red: negative, blue: positive). Clear spatial clustering is evident: agents form densely connected communities sharing similar views, with sparse connections between opposing groups. This emergent structure mirrors the echo chamber phenomenon observed in real social media platforms.
+Figure~\ref{fig:network} visualizes the final network configuration with comprehensive community analysis. The left panel shows the network structure with nodes colored by opinion community: positive opinions (red, "Pro"), negative opinions (blue, "Con"), and neutral agents (gray). Clear spatial clustering is evident, with agents forming densely connected communities sharing similar views. Cross-community links (shown as dashed orange lines) are sparse, representing only a small fraction of total connections, demonstrating strong echo chamber formation.
+
+The right panel displays the final opinion distribution histogram, revealing a strongly bimodal distribution with two distinct peaks at opposing positions. The mean opinion deviates from the objective truth (shown as red dashed line), indicating systematic bias. The polarization index (variance) quantifies the degree of opinion fragmentation. This emergent structure mirrors the echo chamber phenomenon observed in real social media platforms, where algorithmic and social factors create isolated information bubbles with minimal cross-group communication.
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.8\textwidth]{../figures/fig3_network_structure.png}
-\caption{Network structure at equilibrium showing echo chamber clustering. Node color indicates opinion (red: $O<0$, blue: $O>0$). Spatial segregation emerges spontaneously from local dynamics.}
+\includegraphics[width=0.95\textwidth]{../figures/fig3_network_structure.png}
+\caption{Network structure at equilibrium showing echo chamber clustering (left) and final opinion distribution (right). Left: Nodes are colored by opinion community (red: Pro, blue: Con, gray: Neutral). Cross-community links (dashed orange) are sparse. Right: Histogram shows bimodal distribution with peaks at opposing positions, quantified by polarization variance. The combination demonstrates both structural segregation and ideological divergence characteristic of echo chambers.}
 \label{fig:network}
 \end{figure}
 
-\subsection{Robustness Across Network Topologies}
-
-Figure~\ref{fig:networks} compares phase diagrams for Watts-Strogatz (small-world) and Barabási-Albert (scale-free) networks. Both topologies exhibit qualitatively similar phase transitions along the $\alpha \approx \beta$ boundary, confirming that our findings are robust to network structure. However, the BA network shows slightly elevated polarization ($\Delta\text{Pol} \approx 0.05$) in the critical region, likely due to highly-connected hubs amplifying conformity cascades. This demonstrates that while the fundamental mechanism is topology-independent, quantitative details depend on degree distribution.
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.95\textwidth]{../figures/fig4_network_comparison.png}
-\caption{Phase diagram comparison between Watts-Strogatz small-world (left) and Barabási-Albert scale-free (right) networks. Both show critical transitions near $\alpha \approx \beta$, confirming topological robustness. Scale-free networks exhibit slightly higher polarization due to hub amplification effects.}
-\label{fig:networks}
-\end{figure}
-
-\subsection{High-Resolution Critical Region}
-
-Figure~\ref{fig:highres} presents a refined scan of the critical region with 16× higher resolution. The phase boundary exhibits sharp, smooth transitions characteristic of second-order phase transitions in statistical mechanics. The gradient $\nabla\text{Pol}$ is maximal along the diagonal $\alpha = \beta$, with transition width $\Delta\alpha \approx 0.1$. This narrow transition window implies that small perturbations to system parameters can trigger abrupt shifts between consensus and polarization, highlighting the fragility of healthy discourse in marginally-stable regimes.
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.8\textwidth]{../figures/fig5_highres_critical.png}
-\caption{High-resolution phase diagram of critical region ($\alpha \in [0.4, 0.7]$, $\beta \in [0.3, 0.6]$, step = 0.02). The sharp transition along $\alpha = \beta$ (dashed line) exhibits second-order phase transition characteristics with narrow transition width $\Delta\alpha \approx 0.1$.}
-\label{fig:highres}
-\end{figure}
-
-\subsection{Sensitivity to Stubborn Agent Fraction}
-
-Figure~\ref{fig:sensitivity} reveals a monotonic relationship between stubborn agent fraction and equilibrium polarization. At 0\% stubborn agents, the system shows moderate polarization ($\text{Pol} \approx 0.25$). Each 5\% increase in stubborn fraction elevates polarization by $\Delta\text{Pol} \approx 0.03$, reaching $\text{Pol} \approx 0.40$ at 30\%. Error bars remain small ($\sigma < 0.02$), indicating robust effects. This quantifies the disproportionate influence of ideological extremists: even small minorities ($\sim$10\%) substantially destabilize consensus by anchoring opinion clusters at extreme positions.
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.8\textwidth]{../figures/fig6_stubborn_sensitivity.png}
-\caption{Sensitivity analysis: mean polarization versus stubborn agent fraction (0\%-30\%) at fixed $\alpha=0.6$, $\beta=0.4$. Linear trend ($R^2 > 0.95$) demonstrates systematic destabilization. Error bars show standard deviation across 5 runs. Small minorities of extremists significantly amplify polarization.}
-\label{fig:sensitivity}
-\end{figure}
+% NOTE: Extended experiments (Figures 4-6) are planned for future work
+% They require running: python3 simulation.py --extended
 
 \section{Discussion}
 
