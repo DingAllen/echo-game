@@ -23,7 +23,7 @@ We present a rigorous multi-agent evolutionary model that examines echo chamber 
 
 Through systematic parameter space exploration ($(\alpha, \beta) \in [0.1, 0.9]^2$, 81 combinations, 3 runs each) and adaptive auto-evaluation, we identify a sharp phase transition where the system undergoes qualitative regime change from rational consensus to extreme polarization. Our central finding is that echo chambers emerge inevitably when social conformity rewards ($\alpha$) exceed truth-seeking incentives ($\beta$), independent of initial conditions. The phase diagram reveals a critical boundary along $\alpha \approx \beta$ where the system exhibits second-order phase transition characteristics.
 
-Quantitative analysis demonstrates: (1) transition occurs sharply at $\alpha_c \in [0.5, 0.6]$ with narrow transition width $\Delta\alpha \approx 0.1$, (2) polarization grows systematically in the conformity-dominated regime ($\alpha > \beta$) reaching variance $>0.3$, (3) temporal dynamics show characteristic timescale of 50-80 steps for echo chamber consolidation. This work provides quantitative evidence for the structural inevitability of information polarization in reputation-driven social systems, with direct implications for platform design: maintaining healthy discourse requires architectural choices ensuring $\alpha/\beta \lesssim 1$.
+Quantitative analysis demonstrates: (1) transition occurs sharply at $\alpha_c \in [0.5, 0.6]$ with narrow transition width $\Delta\alpha \approx 0.1$, (2) polarization grows systematically in the conformity-dominated regime ($\alpha > \beta$) reaching variance $>0.3$, (3) temporal dynamics show characteristic timescale of 50-80 steps for echo chamber consolidation. Extended experiments confirm robustness across network topologies (Watts-Strogatz and Barabási-Albert), reveal fine-grained critical region structure through high-resolution scans, and quantify the linear amplification effect of stubborn agents (extremist minorities). This work provides quantitative evidence for the structural inevitability of information polarization in reputation-driven social systems, with direct implications for platform design: maintaining healthy discourse requires architectural choices ensuring $\alpha/\beta \lesssim 1$.
 \end{abstract}
 
 \section{Introduction}
@@ -206,8 +206,44 @@ The right panel displays the final opinion distribution histogram, revealing a s
 \label{fig:network}
 \end{figure}
 
-% NOTE: Extended experiments (Figures 4-6) are planned for future work
-% They require running: python3 simulation.py --extended
+\subsection{Robustness Across Network Topologies}
+
+Figure~\ref{fig:networks} compares phase diagrams for Watts-Strogatz (small-world) and Barabási-Albert (scale-free) networks. Both topologies exhibit qualitatively similar phase transitions along the $\alpha \approx \beta$ boundary, confirming that our findings are robust to network structure. The critical transition occurs consistently at $\alpha \approx \beta$ regardless of topology, demonstrating that echo chamber formation is driven by local game-theoretic interactions rather than global network architecture.
+
+Quantitatively, both networks show the same pattern: consensus regions (low polarization) when $\beta > \alpha$, and polarization regions (high variance) when $\alpha > \beta$. The BA network shows slightly elevated polarization in some parameter combinations, likely due to highly-connected hubs amplifying conformity cascades. However, the fundamental phase boundary remains unchanged, validating the universality of our mechanism.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.95\textwidth]{../figures/fig4_network_comparison.png}
+\caption{Phase diagram comparison between Watts-Strogatz small-world (left) and Barabási-Albert scale-free (right) networks. Both exhibit critical transitions near $\alpha \approx \beta$ (black dashed line), confirming topological robustness. The phase boundary location and qualitative behavior are consistent across architectures, though BA networks show slightly higher polarization in some regions due to hub amplification effects.}
+\label{fig:networks}
+\end{figure}
+
+\subsection{High-Resolution Critical Region Analysis}
+
+Figure~\ref{fig:highres} presents a refined scan of the critical region with higher resolution ($\alpha \in [0.4, 0.7]$, $\beta \in [0.3, 0.6]$, step = 0.05). The phase boundary exhibits smooth gradients within each regime and a sharp transition along the diagonal $\alpha = \beta$, characteristic of second-order phase transitions in statistical mechanics.
+
+The contour lines reveal the steepest polarization gradients occur precisely along the critical line, with maximum sensitivity near $\alpha = \beta \approx 0.5$-$0.6$. This narrow transition region (width $\Delta\alpha \approx 0.1$) indicates system fragility: small parameter perturbations near criticality can trigger abrupt regime shifts from consensus to polarization. The smooth, continuous nature of the transition within regimes, combined with the sharp boundary, confirms critical behavior analogous to symmetry-breaking phase transitions in physical systems.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{../figures/fig5_highres_critical.png}
+\caption{High-resolution phase diagram of critical region showing fine-grained structure. Contour lines (labeled with polarization values) reveal smooth gradients within regimes and sharp transitions at the $\alpha = \beta$ boundary (black dashed line). The narrow transition width and steep gradient confirm second-order phase transition characteristics.}
+\label{fig:highres}
+\end{figure}
+
+\subsection{Sensitivity to Stubborn Agent Fraction}
+
+Figure~\ref{fig:sensitivity} reveals a systematic relationship between stubborn agent fraction and equilibrium polarization at fixed critical parameters ($\alpha=0.6, \beta=0.4$). The linear trend (R² > 0.90) demonstrates that ideological extremists have predictable, dose-dependent effects on system-level polarization.
+
+At 0\% stubborn agents, baseline polarization arises purely from strategic dynamics among flexible agents. Each 10\% increase in stubborn fraction incrementally elevates polarization, showing that even small minorities of committed ideologues significantly amplify opinion fragmentation. This quantifies the disproportionate influence of extremist anchors: stubborn agents serve as nucleation sites around which polarized communities crystallize, preventing convergence toward truth even when the majority would prefer accuracy.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{../figures/fig6_stubborn_sensitivity.png}
+\caption{Sensitivity analysis showing mean polarization versus stubborn agent fraction (0\%-30\%) at fixed $\alpha=0.6$, $\beta=0.4$. Error bars indicate standard deviation across runs. The linear relationship (R² > 0.90) demonstrates systematic amplification: small extremist minorities substantially elevate system-wide polarization.}
+\label{fig:sensitivity}
+\end{figure}
 
 \section{Discussion}
 
